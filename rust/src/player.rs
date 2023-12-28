@@ -1,35 +1,38 @@
 use godot::prelude::*;
-use godot::engine::Sprite2D;
-use godot::engine::ISprite2D;
+use godot::engine::{ICharacterBody2D, CharacterBody2D};
 
 #[derive(GodotClass)]
-#[class(base=Sprite2D)]
+#[class(base=CharacterBody2D)]
 pub struct Player {
     speed: f64,
-    angular_speed: f64,
 
     #[base]
-    sprite: Base<Sprite2D>,
+    base: Base<CharacterBody2D>,
+}
+impl Player {
+    fn get_input(&self) -> Vector2 {
+        let input_direction: Vector2 = Input::singleton().get_vector(StringName::from("ui_left"), StringName::from("ui_right"), StringName::from("ui_up"), StringName::from("ui_down"));
+        input_direction
+    }
 }
 
 #[godot_api]
-pub impl ISprite2D for Player {
-    fn init(sprite: Base<Sprite2D>) -> Self {
+pub impl ICharacterBody2D for Player {
+    fn init(base: Base<CharacterBody2D>) -> Self {
         godot_print!("Hello, world!");
 
         Self {
-            speed: 400.0,
-            angular_speed: std::f64::consts::PI,
-            sprite,
+            speed: 100.0,
+            base,
         }
     }
 
-    fn physics_process(&mut self, delta: f64) {
-        self.sprite.rotate((self.angular_speed * delta) as f32);
+    // set velocity based on speed and user input to get direction
+    fn physics_process(&mut self, _delta: f64) {
+        let velocity: Vector2 = self.get_input() * self.speed as f32;
 
-        let rotation: f32 = self.sprite.get_rotation();
-        let velocity: Vector2 = Vector2::UP.rotated(rotation) * self.speed as f32;
-        self.sprite.translate(velocity * delta as f32);
+        self.base.set_velocity(velocity);
+        self.base.move_and_slide();
 
     }
 }
