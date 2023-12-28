@@ -418,6 +418,6 @@ animations = [{
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 position = Vector2(0, -5)
+scale = Vector2(5, 5)
 sprite_frames = SubResource("SpriteFrames_qwjv5")
-animation = &"front_idle"
-frame_progress = 0.611814
+animation = &"back_walk"
