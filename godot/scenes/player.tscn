@@ -1,6 +1,9 @@
-[gd_scene load_steps=54 format=3 uid="uid://bc5s12so6ofqd"]
+[gd_scene load_steps=55 format=3 uid="uid://bc5s12so6ofqd"]
 
 [ext_resource type="Texture2D" uid="uid://p5pd2kw2dp2g" path="res://art/characters/player.png" id="1_qarnk"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1byay"]
+size = Vector2(8, 5)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_t4q72"]
 atlas = ExtResource("1_qarnk")
@@ -413,9 +416,19 @@ animations = [{
 }]
 
 [node name="Player" type="Player"]
+y_sort_enabled = true
+collision_layer = 3
+slide_on_ceiling = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+z_index = 1
+y_sort_enabled = true
+position = Vector2(1, -2.5)
+shape = SubResource("RectangleShape2D_1byay")
+debug_color = Color(0, 0.6, 0.701961, 0.419608)
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_qwjv5")
-animation = &"side_idle"
+animation = &"side_attack"
+frame_progress = 0.797392
+offset = Vector2(0, -15)
