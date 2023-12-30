@@ -115,7 +115,7 @@ impl Player {
 pub impl ICharacterBody2D for Player {
     fn init(base: Base<CharacterBody2D>) -> Self {
         Self { 
-            speed: 400.0,
+            speed: 100.0,
             prev_anim: Direction::Idle, 
             base }
     }
