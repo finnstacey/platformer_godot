@@ -1,10 +1,14 @@
+use crate::character::{Status};
+use crate::enemy::Enemy;
 use float_cmp::approx_eq;
-use godot::engine::{AnimatedSprite2D, CharacterBody2D, ICharacterBody2D};
+use godot::engine::{AnimatedSprite2D, Area2D, CharacterBody2D, ICharacterBody2D, Timer};
+use godot::obj::EngineClass;
 use godot::prelude::*;
 
 #[derive(GodotClass)]
 #[class(base=CharacterBody2D)]
 pub struct Player {
+    health: i32,
     speed: f64,
     prev_anim: Direction,
 
@@ -26,7 +30,7 @@ impl Player {
     // gets user-input, assigns a direction and then plays the appropriate animation for the key
     fn get_input(&mut self) -> Vector2 {
         let input: Gd<Input> = Input::singleton();
-        
+
         let input_direction = input.get_vector(
             StringName::from("ui_left"),
             StringName::from("ui_right"),
@@ -39,11 +43,11 @@ impl Player {
         // Else, update the previous animation state to be the current state and animate.
         match anim {
             Direction::Idle => {
-                self.animate(self.prev_anim.clone(), false);
-            },
+                self.animate(self.prev_anim.clone(), Status::Idle);
+            }
             _ => {
                 self.prev_anim = anim.clone();
-                self.animate(anim, true);
+                self.animate(anim, Status::Walk);
             }
         }
         // godot_print!("{}", input_direction);
@@ -72,36 +76,37 @@ impl Player {
     }
 
     // calls animation of the child animation node. don't know what happens if this doesn't exist (IT BETTER RAAAAH)
-    fn animate(&self, current_dir: Direction, moving: bool) {
+    fn animate(&self, current_dir: Direction, status: Status) {
         // get child animated sprite
         // if panics occuring then make sure the name is correct
-        let mut anim = self.base.get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
+        let mut anim = self
+            .base
+            .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
 
         // string slice to append if moving
-        let mut status = "_walk";
-        if moving {
-            // pass
-        } else {
-            status = "_idle";
-        }
+        let mut anim_name: &str = match status {
+            Status::Idle => "_idle",
+            Status::Walk => "_walk",
+            _ => unimplemented!(),
+        };
 
         match current_dir {
             Direction::Right => {
                 anim.set_flip_h(false);
-                anim.set_animation(StringName::from("side".to_owned() + status));
-            },
+                anim.set_animation(StringName::from("side".to_owned() + anim_name));
+            }
             Direction::Left => {
                 anim.set_flip_h(true);
-                anim.set_animation(StringName::from("side".to_owned() + status));
-            },
+                anim.set_animation(StringName::from("side".to_owned() + anim_name));
+            }
             Direction::Up => {
                 anim.set_flip_h(false);
-                anim.set_animation(StringName::from("back".to_owned() + status));
-            },
+                anim.set_animation(StringName::from("back".to_owned() + anim_name));
+            }
             Direction::Down => {
                 anim.set_flip_h(false);
-                anim.set_animation(StringName::from("front".to_owned() + status));
-            },
+                anim.set_animation(StringName::from("front".to_owned() + anim_name));
+            }
             Direction::Idle => {
                 anim.set_flip_h(false);
                 anim.set_animation(StringName::from("front_idle"));
@@ -109,15 +114,54 @@ impl Player {
             }
         }
     }
+
+    #[signal]
+    fn hit();
+
+
+    // TODO: Die at low health.
+    #[func]
+    fn on_hit(&mut self) {
+        self.health -= 10;
+        godot_print!("{}", self.health);
+
+        if self.health <= 0 {
+            godot_print!("Player has died :(");
+            self.base.queue_free();
+        }
+    }
+
+    #[func]
+    fn on_enemy_enter_hitbox(&mut self, body: Gd<Node2D>) {
+        let enemy = body;
+        let mut timer = enemy.get_node_as::<Timer>("AttackCooldown");
+        timer.connect("timeout".into(), enemy.callable("on_enemy_attack_reset"));
+
+        // Here we re-enter the hitbox and if the cooldown has elapsed we apply on-hit and then start the timer.
+        // This is needed over emitting the hit signal to prevent multiple mutable references to the same Gd<Player>.
+        if timer.is_stopped() {
+            self.on_hit();
+            timer.start();
+        }
+    }
+
+    #[func]
+    fn on_enemy_exit_hitbox(&mut self, body: Gd<Node2D>) {
+        let mut enemy = body;
+        let mut timer = enemy.get_node_as::<Timer>("AttackCooldown");
+        timer.disconnect("timeout".into(), enemy.callable("on_enemy_attack_reset"));
+    }
 }
 
 #[godot_api]
 pub impl ICharacterBody2D for Player {
     fn init(base: Base<CharacterBody2D>) -> Self {
-        Self { 
+        Self {
+            health: 100,
             speed: 100.0,
-            prev_anim: Direction::Idle, 
-            base }
+            prev_anim: Direction::Idle,
+            base,
+        }
     }
 
     // set velocity based on speed and user input to get direction

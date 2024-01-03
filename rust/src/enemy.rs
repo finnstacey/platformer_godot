@@ -1,34 +1,39 @@
-use godot::engine::{Area2D, CharacterBody2D, ICharacterBody2D, AnimatedSprite2D};
+use crate::character::Status;
+use godot::engine::{CharacterBody2D, ICharacterBody2D, AnimatedSprite2D, Timer};
 use godot::prelude::*;
 
 #[derive(GodotClass)]
 #[class(base=CharacterBody2D)]
 pub struct Enemy {
     speed: f64,
-    detection_area: Option<Gd<Area2D>>,
+    player: Gd<CharacterBody2D>,
 
     #[base]
     base: Base<CharacterBody2D>,
 }
 
-pub enum Status {
-    Idle,
-    Walk,
-    Death,
-    Attack,
-}
-
+#[godot_api]
 impl Enemy {
-    fn detect_bodies(&mut self) -> Array<Gd<Node2D>> {
-        // Object will be initialised as None. On first detection we need to obtain child node.
-        if let None = self.detection_area {
-            self.detection_area = Some(self.base.get_node_as::<Area2D>("DetectionArea"));
-        }
+    #[func]
+    fn on_player_entered_detection_area(&mut self, body: Gd<CharacterBody2D>) {
+        self.player = body;
+        self.base.set_physics_process(true);
+        self.animate(Status::Walk);
 
-        // the below statement shouldn't panic if you have the nodes setup correctly.
-        let detected_bodies = self.detection_area.as_ref().expect("Enemy must have child node DetectionArea of type Area2D for detect_bodies() to run.").get_overlapping_bodies();
-        // let detected_bodies = self.detection_area.as_ref().unwrap().get_overlapping_bodies();
-        detected_bodies
+    }
+
+    #[func]
+    fn on_player_exited_detection_area(&mut self, _body: Gd<CharacterBody2D>) {
+        self.base.set_physics_process(false);
+        self.animate(Status::Idle);
+
+    }
+
+    #[func]
+    fn on_enemy_attack_reset(&mut self) {
+        self.player.emit_signal("hit".into(), &[]);
+        let mut timer = self.base.get_node_as::<Timer>("AttackCooldown");
+        timer.start();
     }
 
     fn animate(&self, status: Status) {
@@ -49,28 +54,21 @@ pub impl ICharacterBody2D for Enemy {
     fn init(base: Base<CharacterBody2D>) -> Self {
         Self {
             speed: 50.0,
-            detection_area: None,
+            player: CharacterBody2D::new_alloc(),
 
             base,
         }
     }
 
     fn physics_process(&mut self, _delta: f64) {
-        // Detect bodies
-        let detected_bodies: Array<Gd<Node2D>> = self.detect_bodies();
-        
-        // Chase the detected body. For now, there is only one player so we should access the first entry.
-        // TODO: Upon touching the player he should pause.
-        if detected_bodies.len() > 0 {
-            let player_pos: Vector2 = detected_bodies.get(0).get_position(); // this should not panic :D
-            let chase_direction: Vector2 = (player_pos - self.base.get_position()).normalized(); // all directions should be unit vectors
-            let velocity: Vector2 = chase_direction * self.speed as f32;
+        // let timer = self.base.get_node_as::<Timer>("AttackCooldown");
+        // let time_remaining: f64 = timer.get_time_left();
+        // godot_print!("{}", time_remaining);
+        let player_pos: Vector2 = self.player.get_position();
+        let chase_direction: Vector2 = (player_pos - self.base.get_position()).normalized(); // all directions should be unit vectors
+        let velocity: Vector2 = chase_direction * self.speed as f32;
 
-            self.base.set_velocity(velocity);
-            self.base.move_and_slide();
-            self.animate(Status::Walk);
-        } else {
-            self.animate(Status::Idle);
-        }
+        self.base.set_velocity(velocity);
+        self.base.move_and_slide();
     }
 }
