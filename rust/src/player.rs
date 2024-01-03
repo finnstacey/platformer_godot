@@ -1,8 +1,6 @@
-use crate::character::{Status};
-use crate::enemy::Enemy;
+use crate::character::Status;
 use float_cmp::approx_eq;
 use godot::engine::{AnimatedSprite2D, Area2D, CharacterBody2D, ICharacterBody2D, Timer};
-use godot::obj::EngineClass;
 use godot::prelude::*;
 
 #[derive(GodotClass)]
@@ -118,7 +116,6 @@ impl Player {
     #[signal]
     fn hit();
 
-
     // TODO: Die at low health.
     #[func]
     fn on_hit(&mut self) {
@@ -132,8 +129,10 @@ impl Player {
     }
 
     #[func]
-    fn on_enemy_enter_hitbox(&mut self, body: Gd<Node2D>) {
-        let enemy = body;
+    fn on_enemy_enter_hitbox(&mut self, area: Gd<Node2D>) {
+        let enemy = area
+            .get_parent()
+            .expect("Enemy should have Area2D child nodes \"Hitbox\""); // enemy should be the detection areas parent.
         let mut timer = enemy.get_node_as::<Timer>("AttackCooldown");
         timer.connect("timeout".into(), enemy.callable("on_enemy_attack_reset"));
 
@@ -146,10 +145,35 @@ impl Player {
     }
 
     #[func]
-    fn on_enemy_exit_hitbox(&mut self, body: Gd<Node2D>) {
-        let mut enemy = body;
+    fn on_enemy_exit_hitbox(&mut self, area: Gd<Node2D>) {
+        let mut enemy = area
+            .get_parent()
+            .expect("Enemy should have Area2D child nodes \"Hitbox\"");
         let mut timer = enemy.get_node_as::<Timer>("AttackCooldown");
         timer.disconnect("timeout".into(), enemy.callable("on_enemy_attack_reset"));
+    }
+
+    fn on_attack_pressed(&mut self) {
+        let mut timer = self.base.get_node_as::<Timer>("AttackCooldown");
+        let attack_range = self.base.get_node_as::<Area2D>("AttackRange");
+        let is_enemy_in_attack_range = attack_range.has_overlapping_areas(); // should only return true for enemy is layering and masking are set correctly.
+
+        // We check if there enemies in the AttackRange area and make sure the cooldown has expired.
+        // We can then iterate over all enemies which allows us to have multiple areas for 1 player if we want!
+        if is_enemy_in_attack_range & timer.is_stopped() {
+            let area_array = attack_range.get_overlapping_areas();
+                
+            for area in area_array.iter_shared() {
+                let mut enemy = area                
+                    .get_parent()
+                    .expect("Enemy hitbox should be the child of Enemy.");
+
+                enemy.emit_signal("hit".into(), &[]);
+            }
+
+            timer.start();
+            // self.animate(self.prev_anim.clone(), Status::Attack);
+        }
     }
 }
 
@@ -167,6 +191,8 @@ pub impl ICharacterBody2D for Player {
     // set velocity based on speed and user input to get direction
     fn physics_process(&mut self, _delta: f64) {
         let input = self.get_input();
+        let attack_input = Input::singleton().is_action_just_released("attack".into());
+        if attack_input { self.on_attack_pressed(); }
         let velocity: Vector2 = input * self.speed as f32;
 
         self.base.set_velocity(velocity);

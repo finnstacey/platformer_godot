@@ -1,5 +1,3 @@
-use godot::{prelude::*, engine::Area2D};
-
 pub enum Status {
     Idle,
     Walk,

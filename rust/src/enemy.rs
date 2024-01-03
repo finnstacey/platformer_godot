@@ -5,6 +5,7 @@ use godot::prelude::*;
 #[derive(GodotClass)]
 #[class(base=CharacterBody2D)]
 pub struct Enemy {
+    health: i32,
     speed: f64,
     player: Gd<CharacterBody2D>,
 
@@ -14,6 +15,21 @@ pub struct Enemy {
 
 #[godot_api]
 impl Enemy {
+    #[signal]
+    fn hit();
+
+    #[func]
+    fn on_hit(&mut self) {
+        self.health -= 10;
+        godot_print!("{}", self.health);
+        godot_print!("Successful attack");
+
+        if self.health <= 0 {
+            godot_print!("Enemy has died :(");
+            self.base.queue_free();
+        }
+    }
+
     #[func]
     fn on_player_entered_detection_area(&mut self, body: Gd<CharacterBody2D>) {
         self.player = body;
@@ -53,6 +69,7 @@ impl Enemy {
 pub impl ICharacterBody2D for Enemy {
     fn init(base: Base<CharacterBody2D>) -> Self {
         Self {
+            health: 100,
             speed: 50.0,
             player: CharacterBody2D::new_alloc(),
 

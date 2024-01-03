@@ -1,4 +1,4 @@
-[gd_scene load_steps=55 format=3 uid="uid://bc5s12so6ofqd"]
+[gd_scene load_steps=57 format=3 uid="uid://bc5s12so6ofqd"]
 
 [ext_resource type="Texture2D" uid="uid://p5pd2kw2dp2g" path="res://art/characters/player.png" id="1_qarnk"]
 
@@ -415,6 +415,11 @@ animations = [{
 "speed": 5.0
 }]
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_mujm2"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_li8fp"]
+radius = 21.095
+
 [node name="Player" type="Player"]
 y_sort_enabled = true
 collision_layer = 3
@@ -430,5 +435,31 @@ debug_color = Color(0, 0.6, 0.701961, 0.419608)
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_qwjv5")
 animation = &"side_attack"
-frame_progress = 0.797392
+frame_progress = 0.515068
 offset = Vector2(0, -15)
+
+[node name="Hitbox" type="Area2D" parent="."]
+visible = false
+collision_layer = 4
+collision_mask = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(0, -6)
+shape = SubResource("CircleShape2D_mujm2")
+
+[node name="AttackCooldown" type="Timer" parent="."]
+one_shot = true
+autostart = true
+
+[node name="AttackRange" type="Area2D" parent="."]
+collision_mask = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackRange"]
+position = Vector2(0, -5)
+shape = SubResource("CircleShape2D_li8fp")
+
+[connection signal="hit" from="." to="." method="on_hit"]
+[connection signal="area_entered" from="Hitbox" to="." method="on_enemy_enter_hitbox"]
+[connection signal="area_exited" from="Hitbox" to="." method="on_enemy_exit_hitbox"]
+[connection signal="body_entered" from="Hitbox" to="." method="on_enemy_enter_hitbox"]
+[connection signal="body_exited" from="Hitbox" to="." method="on_enemy_exit_hitbox"]
